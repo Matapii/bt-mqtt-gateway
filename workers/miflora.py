@@ -23,6 +23,7 @@ _LOGGER = logger.get(__name__)
 
 class MifloraWorker(BaseWorker):
     per_device_timeout = DEFAULT_PER_DEVICE_TIMEOUT  # type: int
+    low_battery_sensor = True
 
     def _setup(self):
         from miflora.miflora_poller import MiFloraPoller
@@ -36,6 +37,9 @@ class MifloraWorker(BaseWorker):
                 "poller": MiFloraPoller(mac, BluepyBackend),
             }
 
+    def format_friendly_name(self, name):
+        return name.replace('_', ' ').title()
+
     def config(self, availability_topic):
         ret = []
         for name, data in self.devices.items():
@@ -48,14 +52,14 @@ class MifloraWorker(BaseWorker):
             "identifiers": [mac, self.format_discovery_id(mac, name)],
             "manufacturer": "Xiaomi",
             "model": "MiFlora",
-            "name": self.format_discovery_name(name),
+            "name": self.format_friendly_name(self.format_discovery_name(name)),
         }
 
-        for attr in monitoredAttrs:
+        for attr in (monitoredAttrs + ['rssi']):
             payload = {
                 "unique_id": self.format_discovery_id(mac, name, attr),
                 "state_topic": self.format_prefixed_topic(name, attr),
-                "name": self.format_discovery_name(name, attr),
+                "name": self.format_friendly_name(self.format_discovery_name(name, attr)),
                 "device": device,
             }
 
@@ -77,6 +81,8 @@ class MifloraWorker(BaseWorker):
                 )
             elif attr == ATTR_BATTERY:
                 payload.update({"device_class": "battery", "unit_of_measurement": "%"})
+            elif attr == "rssi":
+                payload.update({"device_class": "signal_strength", "unit_of_measurement": "dB"})
 
             ret.append(
                 MqttConfigMessage(
@@ -86,19 +92,20 @@ class MifloraWorker(BaseWorker):
                 )
             )
 
-        ret.append(
-            MqttConfigMessage(
-                MqttConfigMessage.BINARY_SENSOR,
-                self.format_discovery_topic(mac, name, ATTR_LOW_BATTERY),
-                payload={
-                    "unique_id": self.format_discovery_id(mac, name, ATTR_LOW_BATTERY),
-                    "state_topic": self.format_prefixed_topic(name, ATTR_LOW_BATTERY),
-                    "name": self.format_discovery_name(name, ATTR_LOW_BATTERY),
-                    "device": device,
-                    "device_class": "battery",
-                },
+        if self.low_battery_sensor:
+            ret.append(
+                MqttConfigMessage(
+                    MqttConfigMessage.BINARY_SENSOR,
+                    self.format_discovery_topic(mac, name, ATTR_LOW_BATTERY),
+                    payload={
+                        "unique_id": self.format_discovery_id(mac, name, ATTR_LOW_BATTERY),
+                        "state_topic": self.format_prefixed_topic(name, ATTR_LOW_BATTERY),
+                        "name": self.format_discovery_name(name, ATTR_LOW_BATTERY),
+                        "device": device,
+                        "device_class": "battery",
+                    },
+                )
             )
-        )
 
         return ret
 
@@ -144,11 +151,12 @@ class MifloraWorker(BaseWorker):
             )
 
         # Low battery binary sensor
-        ret.append(
-            MqttMessage(
-                topic=self.format_topic(name, ATTR_LOW_BATTERY),
-                payload=self.true_false_to_ha_on_off(poller.parameter_value(ATTR_BATTERY) < 10),
+        if self.low_battery_sensor:
+            ret.append(
+                MqttMessage(
+                    topic=self.format_topic(name, ATTR_LOW_BATTERY),
+                    payload=self.true_false_to_ha_on_off(poller.parameter_value(ATTR_BATTERY) < 10),
+                )
             )
-        )
 
         return ret

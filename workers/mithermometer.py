@@ -26,6 +26,9 @@ class MithermometerWorker(BaseWorker):
                 "poller": MiThermometerPoller(mac, BluepyBackend),
             }
 
+    def format_friendly_name(self, name):
+        return name.replace('_', ' ').title()
+
     def config(self, availbility_topic):
         ret = []
         for name, data in self.devices.items():
@@ -38,13 +41,13 @@ class MithermometerWorker(BaseWorker):
             "identifiers": [mac, self.format_discovery_id(mac, name)],
             "manufacturer": "Xiaomi",
             "model": "LYWSD(CGQ/01ZM)",
-            "name": self.format_discovery_name(name),
+            "name": self.format_friendly_name(self.format_discovery_name(name)),
         }
 
-        for attr in monitoredAttrs:
+        for attr in (monitoredAttrs + ['rssi']):
             payload = {
                 "unique_id": self.format_discovery_id(mac, name, attr),
-                "name": self.format_discovery_name(name, attr),
+                "name": self.format_friendly_name(self.format_discovery_name(name, attr)),
                 "state_topic": self.format_prefixed_topic(name, attr),
                 "device_class": attr,
                 "device": device,
@@ -56,6 +59,9 @@ class MithermometerWorker(BaseWorker):
                 payload["unit_of_measurement"] = "%"
             elif attr == "battery":
                 payload["unit_of_measurement"] = "%"
+            elif attr == "rssi":
+                payload["unit_of_measurement"] = "dB"
+                payload["device_class"] = 'signal_strength'
 
             ret.append(
                 MqttConfigMessage(
