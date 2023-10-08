@@ -1,4 +1,4 @@
-FROM python:3.8-alpine3.12
+FROM python:3.10-alpine
 
 ENV DEBUG false
 
@@ -7,13 +7,12 @@ WORKDIR /application
 
 COPY requirements.txt /application
 
-RUN apk add --no-cache tzdata bluez bluez-libs sudo bluez-deprecated && \
-    ln -s /config.yaml ./config.yaml                                 && \
-    pip install -r requirements.txt
-
 COPY . /application
 
-RUN apk add --no-cache --virtual build-dependencies git bluez-dev musl-dev make gcc glib-dev musl-dev && \
+RUN apk add --no-cache tzdata bluez bluez-libs sudo bluez-deprecated && \
+    apk add --no-cache --virtual build-dependencies git bluez-dev musl-dev make gcc glib-dev musl-dev && \
+    ln -s /config.yaml ./config.yaml                                 && \
+    pip install -r requirements.txt                                  && \
     pip install `./gateway.py -r all`                                                                 && \
     apk del build-dependencies
 

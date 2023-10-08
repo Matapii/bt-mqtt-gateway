@@ -68,7 +68,7 @@ class MifloraWorker(BaseWorker):
                     {
                         "unique_id": self.format_discovery_id(mac, name, "illuminance"),
                         "device_class": "illuminance",
-                        "unit_of_measurement": "lux",
+                        "unit_of_measurement": "lx",
                     }
                 )
             elif attr == "moisture":
