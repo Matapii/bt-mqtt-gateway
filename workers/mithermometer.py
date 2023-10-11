@@ -6,7 +6,7 @@ from interruptingcow import timeout
 from workers.base import BaseWorker, retry
 import logger
 
-REQUIREMENTS = ["mithermometer==0.1.4", "bluepy"]
+REQUIREMENTS = ["mithermometer@git+https://github.com/Matapii/mithermometer.git#egg=mithermometer", "bluepy"]
 monitoredAttrs = ["temperature", "humidity", "battery"]
 _LOGGER = logger.get(__name__)
 
@@ -47,7 +47,7 @@ class MithermometerWorker(BaseWorker):
         for attr in (monitoredAttrs + ['rssi']):
             payload = {
                 "unique_id": self.format_discovery_id(mac, name, attr),
-                "name": self.format_friendly_name(self.format_discovery_name(name, attr)),
+                "name": self.format_friendly_name(attr),
                 "state_topic": self.format_prefixed_topic(name, attr),
                 "device_class": attr,
                 "device": device,
